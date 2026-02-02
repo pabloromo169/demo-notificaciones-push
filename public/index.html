@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -73,10 +74,16 @@
             font-weight: 500;
         }
 
-        .success { color: #059669; }
-        .error { color: #dc2626; }
+        .success {
+            color: #059669;
+        }
+
+        .error {
+            color: #dc2626;
+        }
     </style>
 </head>
+
 <body>
     <div class="card">
         <h1>Notificaciones Push</h1>
@@ -86,9 +93,9 @@
     </div>
 
     <script type="module">
-        import { inicializarPush } from '../src/utils.js';
+        import { inicializarPush } from './utils.js';
 
-        const VAPID_PUBLIC_KEY = 'BDm_wIlErGo6RXJ5I8GYuK7ij2nI7EvbRQk1_q57LQFqNyII51PLtRrqfpHDASeQvIM4Bky50nUFdlWb_LU';
+        const VAPID_PUBLIC_KEY = 'BDm_wIlErGo6RXJ5I8GYuK7ij2nI7EvbRQk1_q57LQFqNyII51PLtRrqfpHDASeQvIM4Bky50nUFdlWb_LU-S4g';
         const btn = document.getElementById('btnSubscribe');
         const status = document.getElementById('status');
 
@@ -96,7 +103,7 @@
             btn.disabled = true;
             status.textContent = '⏳ Procesando...';
             status.className = '';
-            
+
             try {
                 await inicializarPush(VAPID_PUBLIC_KEY);
                 status.textContent = '🔔 Suscrito correctamente';
@@ -110,4 +117,5 @@
         });
     </script>
 </body>
+
 </html>
