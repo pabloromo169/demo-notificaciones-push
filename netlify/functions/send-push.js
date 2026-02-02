@@ -39,14 +39,24 @@ exports.handler = async (event) => {
     const subscriptionsDocs = await collection.find({}).toArray();
     const subscriptions = subscriptionsDocs.map(doc => doc.subscription);
 
-    const payload = JSON.stringify({
+    // Permitir enviar el mensaje vía el cuerpo del POST
+    let pushData = {
       title: '⏰ NOTIFICACIÓN PUSH',
       body: 'Este es un mensaje de prueba desde Netlify + MongoDB Atlas',
       icon: '/icon.png',
-      data: {
-        url: '/'
+      data: { url: '/' }
+    };
+
+    if (event.httpMethod === 'POST' && event.body) {
+      try {
+        const customData = JSON.parse(event.body);
+        pushData = { ...pushData, ...customData };
+      } catch (e) {
+        console.log('No se pudo parsear el body, usando por defecto');
       }
-    });
+    }
+
+    const payload = JSON.stringify(pushData);
 
     const notifications = subscriptions.map(sub =>
       webpush.sendNotification(sub, payload)
