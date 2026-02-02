@@ -4,10 +4,10 @@ export function urlBase64ToUint8Array(base64String) {
   const base64 = (base64String + padding)
     .replace(/-/g, '+')
     .replace(/_/g, '/');
-  
+
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  
+
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
@@ -33,16 +33,27 @@ export async function suscribirPush(vapidPublicKey) {
   }
 
   // Registra Service Worker
+  console.log('Registrando Service Worker...');
   const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
+  console.log('Service Worker listo');
 
   // Suscribe con VAPID
-  const suscripcion = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-  });
+  const convertedKey = urlBase64ToUint8Array(vapidPublicKey.trim());
+  console.log('VAPID Key converted length:', convertedKey.byteLength);
 
-  return suscripcion;
+  try {
+    const suscripcion = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    });
+    return suscripcion;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error('Error de servicio de red de notificaciones (AbortError).');
+    }
+    throw err;
+  }
 }
 
 // Envía suscripción al backend
