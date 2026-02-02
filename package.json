@@ -1,0 +1,13 @@
+{
+  "name": "push-notification-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx serve public",
+    "build": "echo 'No build step required for this simple app'"
+  },
+  "dependencies": {
+    "faunadb": "^4.8.2",
+    "mongodb": "^7.0.0",
+    "web-push": "^3.6.7"
+  }
+}
