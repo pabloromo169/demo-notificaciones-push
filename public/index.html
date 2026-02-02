@@ -108,6 +108,7 @@
                 // Obtener configuración del backend (Netlify Function)
                 const configRes = await fetch('/.netlify/functions/get-config');
                 const { vapidPublicKey } = await configRes.json();
+                console.log('VAPID Public Key recibida:', vapidPublicKey);
 
                 if (!vapidPublicKey) {
                     throw new Error('VAPID_PUBLIC_KEY no configurada en el servidor');
@@ -118,6 +119,7 @@
                 status.className = 'success';
                 btn.textContent = 'Suscripción Activa';
             } catch (error) {
+                console.error('Error detallado de suscripción:', error);
                 status.textContent = '❌ Error: ' + error.message;
                 status.className = 'error';
                 btn.disabled = false;
