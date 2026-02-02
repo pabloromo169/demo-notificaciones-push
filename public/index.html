@@ -95,7 +95,7 @@
     <script type="module">
         import { inicializarPush } from './utils.js';
 
-        const VAPID_PUBLIC_KEY = 'BDm_wIlErGo6RXJ5I8GYuK7ij2nI7EvbRQk1_q57LQFqNyII51PLtRrqfpHDASeQvIM4Bky50nUFdlWb_LU-S4g';
+
         const btn = document.getElementById('btnSubscribe');
         const status = document.getElementById('status');
 
@@ -105,7 +105,15 @@
             status.className = '';
 
             try {
-                await inicializarPush(VAPID_PUBLIC_KEY);
+                // Obtener configuración del backend (Netlify Function)
+                const configRes = await fetch('/.netlify/functions/get-config');
+                const { vapidPublicKey } = await configRes.json();
+
+                if (!vapidPublicKey) {
+                    throw new Error('VAPID_PUBLIC_KEY no configurada en el servidor');
+                }
+
+                await inicializarPush(vapidPublicKey);
                 status.textContent = '🔔 Suscrito correctamente';
                 status.className = 'success';
                 btn.textContent = 'Suscripción Activa';
