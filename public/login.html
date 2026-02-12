@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Push Notifications</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f9fafb;
+            --text: #111827;
+            --card-bg: #ffffff;
+            --error: #dc2626;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .toggle {
+            margin-top: 1rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .toggle a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        #error-msg {
+            color: var(--error);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            text-align: center;
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1 id="title">Iniciar Sesión</h1>
+        <form id="auth-form">
+            <div class="form-group register-only hidden">
+                <label for="nombre">Nombre Completo</label>
+                <input type="text" id="nombre" name="nombre">
+            </div>
+            <div class="form-group">
+                <label for="usuario">Usuario</label>
+                <input type="text" id="usuario" name="usuario" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group register-only hidden">
+                <label for="role">Tipo de Usuario</label>
+                <select id="role" name="role">
+                    <option value="estudiante">Estudiante</option>
+                    <option value="profesor">Profesor</option>
+                </select>
+            </div>
+            <div class="form-group register-only hidden" id="profesor-id-group">
+                <label for="id_profesor">Usuario del Profesor</label>
+                <input type="text" id="id_profesor" name="id_profesor">
+            </div>
+            <button type="submit" id="submit-btn">Entrar</button>
+        </form>
+        <div id="error-msg"></div>
+        <div class="toggle">
+            <span id="toggle-text">¿No tienes cuenta?</span>
+            <a href="#" id="toggle-link">Regístrate</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { api } from './api.js';
+
+        const form = document.getElementById('auth-form');
+        const title = document.getElementById('title');
+        const submitBtn = document.getElementById('submit-btn');
+        const toggleLink = document.getElementById('toggle-link');
+        const toggleText = document.getElementById('toggle-text');
+        const registerFields = document.querySelectorAll('.register-only');
+        const errorMsg = document.getElementById('error-msg');
+        const roleSelect = document.getElementById('role');
+        const profesorIdGroup = document.getElementById('profesor-id-group');
+
+        let isLogin = true;
+
+        toggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            isLogin = !isLogin;
+            title.textContent = isLogin ? 'Iniciar Sesión' : 'Crear Cuenta';
+            submitBtn.textContent = isLogin ? 'Entrar' : 'Registrarse';
+            toggleText.textContent = isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
+            toggleLink.textContent = isLogin ? 'Regístrate' : 'Inicia Sesión';
+            registerFields.forEach(f => f.classList.toggle('hidden', isLogin));
+            errorMsg.style.display = 'none';
+        });
+
+        roleSelect.addEventListener('change', () => {
+            profesorIdGroup.classList.toggle('hidden', roleSelect.value !== 'estudiante');
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMsg.style.display = 'none';
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                if (isLogin) {
+                    const res = await api.login(data.usuario, data.password);
+                    if (res.success) {
+                        window.location.href = res.user.role === 'profesor' ? '/notify.html' : '/index.html';
+                    } else {
+                        throw new Error(res.error || 'Error al iniciar sesión');
+                    }
+                } else {
+                    const res = await api.register(data);
+                    if (res.success) {
+                        alert('Registro completado. Ahora puedes iniciar sesión.');
+                        toggleLink.click();
+                    } else {
+                        throw new Error(res.error || 'Error al registrarse');
+                    }
+                }
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+
+        // Redirigir si ya está logueado
+        if (api.token) {
+            const user = api.getUser();
+            if (user) {
+                window.location.href = user.role === 'profesor' ? '/notify.html' : '/index.html';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,15 +1,15 @@
 const webpush = require('web-push');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB || 'push_db';
+const JWT_SECRET = process.env.JWT_SECRET || 'secret_key_por_defecto_cambiame';
 
 let cachedClient = null;
 
 async function connectToDatabase() {
-  if (cachedClient) {
-    return cachedClient;
-  }
+  if (cachedClient) return cachedClient;
   const client = await MongoClient.connect(MONGODB_URI);
   cachedClient = client;
   return client;
@@ -22,50 +22,78 @@ webpush.setVapidDetails(
 );
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
+  if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Método no permitido' };
   }
 
   try {
-    if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI no está configurada');
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'No autorizado' }) };
+    }
+
+    const token = authHeader.split(' ')[1];
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'Token inválido' }) };
+    }
+
+    if (decoded.role !== 'profesor') {
+      return { statusCode: 403, body: JSON.stringify({ error: 'Prohibido: Solo profesores pueden enviar notificaciones' }) };
     }
 
     const client = await connectToDatabase();
     const db = client.db(MONGODB_DB);
-    const collection = db.collection('subscriptions');
+    const usersCollection = db.collection('users');
+    const subsCollection = db.collection('subscriptions');
 
-    // Obtener todas las suscripciones
-    const subscriptionsDocs = await collection.find({}).toArray();
+    // Obtener el usuario profesor completo (por si necesitamos más datos)
+    const teacher = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    if (!teacher) return { statusCode: 404, body: JSON.stringify({ error: 'Profesor no encontrado' }) };
+
+    // Buscar estudiantes de este profesor
+    const students = await usersCollection.find({ id_profesor: teacher.usuario }).toArray();
+    const studentIds = students.map(s => s._id.toString());
+
+    // Obtener suscripciones de esos estudiantes
+    const subscriptionsDocs = await subsCollection.find({
+      userId: { $in: studentIds }
+    }).toArray();
+
+    if (subscriptionsDocs.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, message: 'No hay estudiantes suscritos para este profesor', count: 0 })
+      };
+    }
+
     const subscriptions = subscriptionsDocs.map(doc => doc.subscription);
 
-    // Permitir enviar el mensaje vía el cuerpo del POST
     let pushData = {
       title: '⏰ NOTIFICACIÓN PUSH',
-      body: 'Este es un mensaje de prueba desde Netlify + MongoDB Atlas',
+      body: 'Nuevo mensaje de tu profesor',
       icon: '/icon.png',
       data: { url: '/' }
     };
 
-    if (event.httpMethod === 'POST' && event.body) {
+    if (event.body) {
       try {
         const customData = JSON.parse(event.body);
         pushData = { ...pushData, ...customData };
       } catch (e) {
-        console.log('No se pudo parsear el body, usando por defecto');
+        console.log('Error parseando body');
       }
     }
 
     const payload = JSON.stringify(pushData);
-
     const notifications = subscriptions.map(sub =>
       webpush.sendNotification(sub, payload)
         .catch(async err => {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log('Suscripción expirada, eliminando de MongoDB...');
-            await collection.deleteOne({ "subscription.endpoint": sub.endpoint });
+            await subsCollection.deleteOne({ "subscription.endpoint": sub.endpoint });
           }
-          // No lanzamos error para que el resto continúe
         })
     );
 

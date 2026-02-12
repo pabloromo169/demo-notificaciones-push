@@ -1,3 +1,5 @@
+import { api } from './api.js';
+
 // Convierte VAPID public key (base64) a Uint8Array para PushManager
 export function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -58,11 +60,8 @@ export async function suscribirPush(vapidPublicKey) {
 
 // Envía suscripción al backend
 export async function guardarSuscripcion(suscripcion) {
-  const respuesta = await fetch('/.netlify/functions/save-sub', {
+  const respuesta = await api.fetch('/.netlify/functions/save-sub', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(suscripcion)
   });
 

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Profesor - Push Notifications</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f9fafb;
+            --text: #111827;
+            --card-bg: #ffffff;
+            --error: #dc2626;
+            --success: #059669;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            height: 100px;
+            resize: none;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logout {
+            color: var(--error);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #status {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .success {
+            color: var(--success);
+        }
+
+        .error {
+            color: var(--error);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <div>
+                <h1 id="welcome">Hola, Profesor</h1>
+                <p class="subtitle">Envía una notificación a tus alumnos</p>
+            </div>
+            <a class="logout" id="logout-btn">Cerrar sesión</a>
+        </div>
+
+        <form id="notify-form">
+            <div class="form-group">
+                <label for="title">Título</label>
+                <input type="text" id="title" name="title" value="⏰ Recordatorio de clase" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Mensaje</label>
+                <textarea id="body" name="body" placeholder="Escribe aquí el mensaje..." required></textarea>
+            </div>
+            <button type="submit" id="send-btn">Enviar Notificación a todos</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script type="module">
+        import { api } from './api.js';
+
+        const user = api.getUser();
+        if (!api.token || !user || user.role !== 'profesor') {
+            window.location.href = '/login.html';
+        }
+
+        document.getElementById('welcome').textContent = `Hola, ${user.nombre}`;
+
+        const form = document.getElementById('notify-form');
+        const sendBtn = document.getElementById('send-btn');
+        const status = document.getElementById('status');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        logoutBtn.addEventListener('click', () => api.logout());
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            sendBtn.disabled = true;
+            status.textContent = '⏳ Enviando...';
+            status.className = '';
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await api.fetch('/.netlify/functions/send-push', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+
+                if (res.ok) {
+                    status.textContent = `✅ Enviado correctamente a ${result.count} dispositivos.`;
+                    status.className = 'success';
+                    form.reset();
+                } else {
+                    throw new Error(result.error || 'Error al enviar');
+                }
+            } catch (err) {
+                status.textContent = '❌ Error: ' + err.message;
+                status.className = 'error';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

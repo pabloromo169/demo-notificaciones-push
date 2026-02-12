@@ -86,15 +86,30 @@
 
 <body>
     <div class="card">
+        <div style="text-align: right; margin-bottom: 1rem;">
+            <a id="logout-btn" style="color: #dc2626; font-size: 0.8rem; cursor: pointer; font-weight: 600;">Cerrar
+                sesión</a>
+        </div>
         <h1>Notificaciones Push</h1>
-        <p>Suscríbete para recibir noticias y actualizaciones directamente en tu navegador.</p>
+        <p>Hola <span id="user-name"></span>, suscríbete para recibir noticias de tu profesor.</p>
         <button id="btnSubscribe">Activar Notificaciones</button>
         <div id="status"></div>
     </div>
 
     <script type="module">
         import { inicializarPush } from './utils.js';
+        import { api } from './api.js';
 
+        // Guardia de sesión
+        const user = api.getUser();
+        if (!api.token || !user) {
+            window.location.href = '/login.html';
+        } else if (user.role === 'profesor') {
+            window.location.href = '/notify.html';
+        }
+
+        document.getElementById('user-name').textContent = user.nombre;
+        document.getElementById('logout-btn').addEventListener('click', () => api.logout());
 
         const btn = document.getElementById('btnSubscribe');
         const status = document.getElementById('status');
@@ -106,9 +121,8 @@
 
             try {
                 // Obtener configuración del backend (Netlify Function)
-                const configRes = await fetch('/.netlify/functions/get-config');
+                const configRes = await api.fetch('/.netlify/functions/get-config');
                 const { vapidPublicKey } = await configRes.json();
-                console.log('VAPID Public Key recibida:', vapidPublicKey);
 
                 if (!vapidPublicKey) {
                     throw new Error('VAPID_PUBLIC_KEY no configurada en el servidor');
