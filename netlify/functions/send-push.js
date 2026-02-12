@@ -40,8 +40,8 @@ exports.handler = async (event) => {
       return { statusCode: 401, body: JSON.stringify({ error: 'Token inválido' }) };
     }
 
-    if (decoded.role !== 'profesor') {
-      return { statusCode: 403, body: JSON.stringify({ error: 'Prohibido: Solo profesores pueden enviar notificaciones' }) };
+    if (decoded.role !== 'profesor' && decoded.role !== 'admin') {
+      return { statusCode: 403, body: JSON.stringify({ error: 'Prohibido: Solo profesores o administradores pueden enviar notificaciones' }) };
     }
 
     const client = await connectToDatabase();
@@ -49,23 +49,28 @@ exports.handler = async (event) => {
     const usersCollection = db.collection('users');
     const subsCollection = db.collection('subscriptions');
 
-    // Obtener el usuario profesor completo (por si necesitamos más datos)
-    const teacher = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    if (!teacher) return { statusCode: 404, body: JSON.stringify({ error: 'Profesor no encontrado' }) };
+    let subscriptionsDocs = [];
 
-    // Buscar estudiantes de este profesor
-    const students = await usersCollection.find({ id_profesor: teacher.usuario }).toArray();
-    const studentIds = students.map(s => s._id.toString());
+    if (decoded.role === 'admin') {
+      // Admins send to all subscriptions
+      subscriptionsDocs = await subsCollection.find({}).toArray();
+    } else {
+      // Teachers send only to their students
+      const teacher = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+      if (!teacher) return { statusCode: 404, body: JSON.stringify({ error: 'Profesor no encontrado' }) };
 
-    // Obtener suscripciones de esos estudiantes
-    const subscriptionsDocs = await subsCollection.find({
-      userId: { $in: studentIds }
-    }).toArray();
+      const students = await usersCollection.find({ id_profesor: teacher.usuario }).toArray();
+      const studentIds = students.map(s => s._id.toString());
+
+      subscriptionsDocs = await subsCollection.find({
+        userId: { $in: studentIds }
+      }).toArray();
+    }
 
     if (subscriptionsDocs.length === 0) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, message: 'No hay estudiantes suscritos para este profesor', count: 0 })
+        body: JSON.stringify({ success: true, message: 'No hay suscripciones para enviar', count: 0 })
       };
     }
 

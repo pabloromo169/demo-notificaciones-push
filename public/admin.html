@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administrador - Global Push</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #dc2626;
+            --primary-hover: #b91c1c;
+            --bg: #fef2f2;
+            --text: #111827;
+            --card-bg: #ffffff;
+            --error: #dc2626;
+            --success: #059669;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        p.subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            height: 100px;
+            resize: none;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logout {
+            color: #4b5563;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #status {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .success {
+            color: var(--success);
+        }
+
+        .error {
+            color: var(--error);
+        }
+
+        .warning-box {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: #92400e;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <div>
+                <h1 id="welcome">ADMIN: Global Push</h1>
+                <p class="subtitle">Panel de notificaciones globales</p>
+            </div>
+            <a class="logout" id="logout-btn">Cerrar sesión</a>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Atención:</strong> Los mensajes enviados desde este panel llegarán a <strong>todos</strong> los
+            dispositivos registrados en el sistema, independientemente de su rol.
+        </div>
+
+        <form id="admin-form">
+            <div class="form-group">
+                <label for="title">Título de la Alerta</label>
+                <input type="text" id="title" name="title" value="🚨 AVISO GLOBAL" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Mensaje</label>
+                <textarea id="body" name="body" placeholder="Escribe aquí el comunicado oficial..." required></textarea>
+            </div>
+            <button type="submit" id="send-btn">Enviar a TODOS los usuarios</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script type="module">
+        import { api } from './api.js';
+
+        const user = api.getUser();
+        if (!api.token || !user || user.role !== 'admin') {
+            window.location.href = '/login.html';
+        }
+
+        const form = document.getElementById('admin-form');
+        const sendBtn = document.getElementById('send-btn');
+        const status = document.getElementById('status');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        logoutBtn.addEventListener('click', () => api.logout());
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!confirm('¿Estás seguro de enviar esta notificación a TODOS los usuarios?')) return;
+
+            sendBtn.disabled = true;
+            status.textContent = '⏳ Enviando globalmente...';
+            status.className = '';
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const res = await api.fetch('/.netlify/functions/send-push', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+
+                if (res.ok) {
+                    status.textContent = `✅ Enviado correctamente a ${result.count} dispositivos en total.`;
+                    status.className = 'success';
+                    form.reset();
+                } else {
+                    throw new Error(result.error || 'Error al enviar');
+                }
+            } catch (err) {
+                status.textContent = '❌ Error: ' + err.message;
+                status.className = 'error';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

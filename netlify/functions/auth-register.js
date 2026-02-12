@@ -42,7 +42,7 @@ exports.handler = async (event) => {
             usuario,
             password: hashedPassword,
             nombre,
-            role, // 'profesor' o 'estudiante'
+            role, // 'profesor', 'estudiante' or 'admin'
             createdAt: new Date()
         };
 
@@ -50,6 +50,8 @@ exports.handler = async (event) => {
             newUser.id_profesor = id_profesor || null;
         } else if (role === 'profesor') {
             newUser.estudiantes_ids = [];
+        } else if (role === 'admin') {
+            // Admins don't need specific fields for now
         }
 
         const result = await users.insertOne(newUser);

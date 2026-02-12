@@ -126,6 +126,7 @@
                 <select id="role" name="role">
                     <option value="estudiante">Estudiante</option>
                     <option value="profesor">Profesor</option>
+                    <option value="admin">Administrador</option>
                 </select>
             </div>
             <div class="form-group register-only hidden" id="profesor-id-group">
@@ -171,6 +172,12 @@
             profesorIdGroup.classList.toggle('hidden', roleSelect.value !== 'estudiante');
         });
 
+        const redirectUser = (user) => {
+            if (user.role === 'admin') window.location.href = '/admin.html';
+            else if (user.role === 'profesor') window.location.href = '/notify.html';
+            else window.location.href = '/index.html';
+        };
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMsg.style.display = 'none';
@@ -182,7 +189,7 @@
                 if (isLogin) {
                     const res = await api.login(data.usuario, data.password);
                     if (res.success) {
-                        window.location.href = res.user.role === 'profesor' ? '/notify.html' : '/index.html';
+                        redirectUser(res.user);
                     } else {
                         throw new Error(res.error || 'Error al iniciar sesión');
                     }
@@ -205,7 +212,7 @@
         if (api.token) {
             const user = api.getUser();
             if (user) {
-                window.location.href = user.role === 'profesor' ? '/notify.html' : '/index.html';
+                redirectUser(user);
             }
         }
     </script>
