@@ -6,6 +6,7 @@
     "build": "echo 'No build step required for this simple app'"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "faunadb": "^4.8.2",
     "mongodb": "^7.0.0",
     "web-push": "^3.6.7"
